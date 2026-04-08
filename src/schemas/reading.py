@@ -7,6 +7,7 @@ class CardDraw(BaseModel):
     position: str  # "past", "present", "future", "single", etc.
     card: str  # "The Tower"
     reversed: bool
+    image_url: str | None = None
 
 
 class ReadingRequest(BaseModel):

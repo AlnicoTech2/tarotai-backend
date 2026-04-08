@@ -141,7 +141,7 @@ async def generate_reading(
 
     # Save to database
     cards_for_db = [
-        {"position": c["position"], "card": c["card"], "reversed": c["reversed"]}
+        {"position": c["position"], "card": c["card"], "reversed": c["reversed"], "image_url": c.get("image_url")}
         for c in cards
     ]
 

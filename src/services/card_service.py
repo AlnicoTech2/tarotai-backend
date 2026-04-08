@@ -40,6 +40,7 @@ async def draw_cards(db: AsyncSession, spread_type: str) -> list[dict]:
             "position": positions[i],
             "card": drawn[i].name,
             "reversed": random.random() > 0.5,
+            "image_url": drawn[i].image_url,
             "meaning_upright": drawn[i].meaning_upright,
             "meaning_reversed": drawn[i].meaning_reversed,
             "keywords_upright": drawn[i].keywords_upright,
