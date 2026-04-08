@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import get_settings
 from src.core.firebase import init_firebase
-from src.routes import auth, readings, cards, horoscope
+from src.routes import auth, readings, cards, horoscope, daily_card
 
 settings = get_settings()
 
@@ -37,6 +37,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(readings.router, prefix="/api/v1")
 app.include_router(cards.router, prefix="/api/v1")
 app.include_router(horoscope.router, prefix="/api/v1")
+app.include_router(daily_card.router, prefix="/api/v1")
 
 
 @app.get("/health")
