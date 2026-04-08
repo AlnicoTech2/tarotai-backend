@@ -15,7 +15,7 @@ from src.services.reading_service import generate_reading
 
 router = APIRouter(prefix="/readings", tags=["readings"])
 
-FREE_MONTHLY_LIMIT = 3
+FREE_MONTHLY_LIMIT = 100  # TODO: revert to 3 before prod
 
 
 @router.post("/", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
@@ -97,6 +97,37 @@ async def get_reading_history(
     )
     readings = result.scalars().all()
     return readings
+
+
+@router.get("/today-single", response_model=ReadingResponse)
+async def get_today_single_reading(
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get today's single card reading if it exists."""
+    result = await db.execute(
+        select(User).where(User.firebase_uid == firebase_user["uid"])
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    today = datetime.now(timezone.utc).date()
+    result = await db.execute(
+        select(Reading)
+        .where(
+            Reading.user_id == user.id,
+            Reading.spread_type == "single",
+            func.date(Reading.created_at) == today,
+        )
+        .order_by(Reading.created_at.desc())
+        .limit(1)
+    )
+    reading = result.scalar_one_or_none()
+    if not reading:
+        raise HTTPException(status_code=404, detail="No daily reading yet")
+
+    return reading
 
 
 @router.get("/{reading_id}", response_model=ReadingResponse)
