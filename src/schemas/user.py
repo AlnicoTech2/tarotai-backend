@@ -12,6 +12,15 @@ class UserCreate(BaseModel):
     longitude: float | None = None
 
 
+class UserUpdate(BaseModel):
+    name: str | None = None
+    date_of_birth: str | None = None  # YYYY-MM-DD
+    time_of_birth: str | None = None  # HH:MM
+    city_of_birth: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+
+
 class UserResponse(BaseModel):
     id: UUID
     name: str
