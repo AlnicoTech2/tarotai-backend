@@ -32,6 +32,7 @@ class UserResponse(BaseModel):
     zodiac_sign: str | None
     moon_sign: str | None
     ascendant: str | None
+    birth_chart: dict | None = None
     is_premium: bool
     subscription_plan: str | None
     created_at: datetime
