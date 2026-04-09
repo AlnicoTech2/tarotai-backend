@@ -36,8 +36,12 @@ async def create_reading(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Check reading quota for free users
-    if not user.is_premium:
+    # Reviewer account — unlimited readings
+    REVIEWER_UID = "tJARnw4OcmgB4oufGHi1y7I2h2B2"
+    is_reviewer = firebase_user["uid"] == REVIEWER_UID
+
+    # Check reading quota for free users (skip for reviewer)
+    if not user.is_premium and not is_reviewer:
         now = datetime.now(timezone.utc)
 
         # Reset counter if new month

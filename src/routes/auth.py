@@ -11,6 +11,9 @@ from src.services.prokerala_service import get_birth_chart, get_planet_positions
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Reviewer account — fresh start on every login
+REVIEWER_UID = "tJARnw4OcmgB4oufGHi1y7I2h2B2"
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -241,9 +244,23 @@ async def get_me(
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get current user profile."""
+    """Get current user profile. Reviewer account gets wiped on every login."""
+    uid = firebase_user["uid"]
+
+    # Reviewer: delete existing data for fresh start every login
+    if uid == REVIEWER_UID:
+        result = await db.execute(select(User).where(User.firebase_uid == uid))
+        reviewer = result.scalar_one_or_none()
+        if reviewer:
+            from src.models.reading import Reading
+            from sqlalchemy import delete
+            await db.execute(delete(Reading).where(Reading.user_id == reviewer.id))
+            await db.delete(reviewer)
+            await db.commit()
+        raise HTTPException(status_code=404, detail="User not found. Please register first.")
+
     result = await db.execute(
-        select(User).where(User.firebase_uid == firebase_user["uid"])
+        select(User).where(User.firebase_uid == uid)
     )
     user = result.scalar_one_or_none()
     if not user:
