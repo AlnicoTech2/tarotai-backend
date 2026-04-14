@@ -88,7 +88,7 @@ async def register(
         # Store useful planet placements in birth_chart
         birth_chart = {"planets": planet_map, "raw": planet_data.get("data")}
 
-        # Get Kundli data for ascendant, nakshatra, dosha
+        # Get Kundli data for ascendant, nakshatra, dosha, and fallback sun/moon
         try:
             chart_data = await get_birth_chart(
                 body.date_of_birth,
@@ -97,12 +97,20 @@ async def register(
                 longitude,
                 timezone_offset,
             )
-            nakshatra = chart_data.get("data", {}).get("nakshatra_details", {})
-            zodiac = nakshatra.get("zodiac", {}).get("name")
+            nd = chart_data.get("data", {}).get("nakshatra_details", {})
+            zodiac = nd.get("zodiac", {}).get("name")
             if zodiac:
                 ascendant = zodiac  # Western zodiac name from Kundli
-            birth_chart["nakshatra"] = nakshatra.get("nakshatra", {}).get("name")
+            birth_chart["nakshatra"] = nd.get("nakshatra", {}).get("name")
             birth_chart["mangal_dosha"] = chart_data.get("data", {}).get("mangal_dosha", {}).get("has_dosha")
+
+            # Fallback: extract sun/moon from kundli if planet-position returned empty
+            if not zodiac_sign:
+                soorya = nd.get("soorya_rasi", {}).get("name", "")
+                zodiac_sign = vedic_to_western.get(soorya, soorya) or None
+            if not moon_sign:
+                chandra = nd.get("chandra_rasi", {}).get("name", "")
+                moon_sign = vedic_to_western.get(chandra, chandra) or None
         except Exception:
             pass
     except Exception:
