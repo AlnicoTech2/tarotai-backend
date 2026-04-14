@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     name: str
     date_of_birth: str  # YYYY-MM-DD
     time_of_birth: str  # HH:MM
+    time_of_birth_known: bool = True
     city_of_birth: str
     latitude: float | None = None
     longitude: float | None = None
@@ -28,6 +29,7 @@ class UserResponse(BaseModel):
     phone: str | None
     date_of_birth: str
     time_of_birth: str
+    time_of_birth_known: bool
     city_of_birth: str
     zodiac_sign: str | None
     moon_sign: str | None

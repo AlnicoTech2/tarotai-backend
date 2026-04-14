@@ -115,6 +115,7 @@ async def register(
         phone=firebase_user.get("phone_number"),
         date_of_birth=body.date_of_birth,
         time_of_birth=body.time_of_birth,
+        time_of_birth_known=body.time_of_birth_known,
         city_of_birth=body.city_of_birth,
         latitude=latitude,
         longitude=longitude,
@@ -151,6 +152,7 @@ async def update_profile(
         user.date_of_birth = body.date_of_birth
     if body.time_of_birth is not None:
         user.time_of_birth = body.time_of_birth
+        user.time_of_birth_known = True
     if body.city_of_birth is not None:
         user.city_of_birth = body.city_of_birth
     if body.latitude is not None:

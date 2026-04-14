@@ -20,6 +20,7 @@ class User(Base):
     # Birth data
     date_of_birth: Mapped[str] = mapped_column(String(10), nullable=False)  # YYYY-MM-DD
     time_of_birth: Mapped[str] = mapped_column(String(5), nullable=False)  # HH:MM
+    time_of_birth_known: Mapped[bool] = mapped_column(Boolean, default=True)
     city_of_birth: Mapped[str] = mapped_column(String(200), nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)

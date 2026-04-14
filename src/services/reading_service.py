@@ -84,7 +84,9 @@ def build_reading_prompt(
         parts.append(f"Sun sign: {user.zodiac_sign}")
     if user.moon_sign:
         parts.append(f"Moon sign: {user.moon_sign}")
-    if user.ascendant:
+    if not user.time_of_birth_known:
+        parts.append("Note: Birth time is approximate (unknown). Focus on sun and moon sign. Do NOT emphasize ascendant or house placements as they may be inaccurate.")
+    elif user.ascendant:
         parts.append(f"Ascendant: {user.ascendant}")
     if user.birth_chart:
         planets = user.birth_chart.get("planets", {})
