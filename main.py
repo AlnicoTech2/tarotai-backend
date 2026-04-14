@@ -46,6 +46,20 @@ async def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
+# ── App config (no auth required) ──
+# Change these values to update app behavior without a rebuild
+APP_CONFIG = {
+    "splash_duration_ms": 3000,
+    "free_readings_per_month": 3,
+    "min_app_version": "1.0.0",
+}
+
+
+@app.get("/api/v1/config")
+async def get_app_config():
+    return APP_CONFIG
+
+
 LEGAL_PAGE_STYLE = """
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
