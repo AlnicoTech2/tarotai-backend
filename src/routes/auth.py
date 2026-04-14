@@ -49,70 +49,110 @@ async def register(
         except Exception:
             pass
 
-    # Fetch birth chart from Prokerala
+    # Fetch ALL astrology data from Prokerala
     birth_chart = {}
     zodiac_sign = None
     moon_sign = None
     ascendant = None
 
+    vedic_to_western = {
+        "Mesha": "Aries", "Vrishabha": "Taurus", "Mithuna": "Gemini",
+        "Karka": "Cancer", "Simha": "Leo", "Kanya": "Virgo",
+        "Tula": "Libra", "Vrischika": "Scorpio", "Dhanu": "Sagittarius",
+        "Makara": "Capricorn", "Kumbha": "Aquarius", "Meena": "Pisces",
+    }
+
     try:
-        planet_data = await get_planet_positions(
-            body.date_of_birth,
-            body.time_of_birth,
-            latitude,
-            longitude,
-            timezone_offset,
-        )
-        birth_chart = planet_data
-
-        # Vedic rasi name → Western zodiac name mapping
-        vedic_to_western = {
-            "Mesha": "Aries", "Vrishabha": "Taurus", "Mithuna": "Gemini",
-            "Karka": "Cancer", "Simha": "Leo", "Kanya": "Virgo",
-            "Tula": "Libra", "Vrischika": "Scorpio", "Dhanu": "Sagittarius",
-            "Makara": "Capricorn", "Kumbha": "Aquarius", "Meena": "Pisces",
-        }
-
-        # Extract key signs from planet positions
-        planets = planet_data.get("data", {}).get("planet_position", [])
+        # 1. Planet positions — full data with degree, longitude, house, rasi, retrograde
         planet_map = {}
-        for planet in planets:
-            rasi_name = planet.get("rasi", {}).get("name", "")
-            western_name = vedic_to_western.get(rasi_name, rasi_name)
-            planet_map[planet["name"]] = western_name
-            if planet.get("name") == "Sun":
-                zodiac_sign = western_name
-            elif planet.get("name") == "Moon":
-                moon_sign = western_name
+        planet_positions_raw = []
+        try:
+            planet_data = await get_planet_positions(
+                body.date_of_birth, body.time_of_birth, latitude, longitude, timezone_offset,
+            )
+            planet_positions_raw = planet_data.get("data", {}).get("planet_position", [])
+            for planet in planet_positions_raw:
+                rasi_name = planet.get("rasi", {}).get("name", "")
+                western_name = vedic_to_western.get(rasi_name, rasi_name)
+                planet_map[planet["name"]] = western_name
+                if planet.get("name") == "Sun":
+                    zodiac_sign = western_name
+                elif planet.get("name") == "Moon":
+                    moon_sign = western_name
+        except Exception:
+            pass
 
-        # Store useful planet placements in birth_chart
-        birth_chart = {"planets": planet_map, "raw": planet_data.get("data")}
-
-        # Get Kundli data for ascendant, nakshatra, dosha, and fallback sun/moon
+        # 2. Kundli — nakshatra, dosha, yogas, dasha (advanced)
         try:
             chart_data = await get_birth_chart(
-                body.date_of_birth,
-                body.time_of_birth,
-                latitude,
-                longitude,
-                timezone_offset,
+                body.date_of_birth, body.time_of_birth, latitude, longitude, timezone_offset,
             )
-            nd = chart_data.get("data", {}).get("nakshatra_details", {})
+            kundli_data = chart_data.get("data", {})
+            nd = kundli_data.get("nakshatra_details", {})
+
+            # Ascendant (Western name from Kundli zodiac)
             zodiac = nd.get("zodiac", {}).get("name")
             if zodiac:
-                ascendant = zodiac  # Western zodiac name from Kundli
-            birth_chart["nakshatra"] = nd.get("nakshatra", {}).get("name")
-            birth_chart["mangal_dosha"] = chart_data.get("data", {}).get("mangal_dosha", {}).get("has_dosha")
+                ascendant = zodiac
 
-            # Fallback: extract sun/moon from kundli if planet-position returned empty
+            # Fallback sun/moon from kundli if planet-position was empty
             if not zodiac_sign:
                 soorya = nd.get("soorya_rasi", {}).get("name", "")
                 zodiac_sign = vedic_to_western.get(soorya, soorya) or None
             if not moon_sign:
                 chandra = nd.get("chandra_rasi", {}).get("name", "")
                 moon_sign = vedic_to_western.get(chandra, chandra) or None
+
+            # Build comprehensive birth_chart JSONB
+            birth_chart = {
+                # Planet positions (for table display)
+                "planets": planet_map,
+                "planet_position": [
+                    {
+                        "name": p.get("name"),
+                        "longitude": p.get("longitude"),
+                        "degree": p.get("degree"),
+                        "position": p.get("position"),  # house number
+                        "is_retrograde": p.get("is_retrograde", False),
+                        "rasi": p.get("rasi", {}).get("name"),
+                        "rasi_lord": p.get("rasi", {}).get("lord", {}).get("name"),
+                    }
+                    for p in planet_positions_raw
+                ],
+                # Nakshatra details
+                "nakshatra": nd.get("nakshatra", {}).get("name"),
+                "nakshatra_lord": nd.get("nakshatra", {}).get("lord", {}).get("name"),
+                "nakshatra_pada": nd.get("nakshatra", {}).get("pada"),
+                # Rasi details with lords
+                "soorya_rasi": nd.get("soorya_rasi", {}).get("name"),
+                "soorya_rasi_lord": nd.get("soorya_rasi", {}).get("lord", {}).get("name"),
+                "chandra_rasi": nd.get("chandra_rasi", {}).get("name"),
+                "chandra_rasi_lord": nd.get("chandra_rasi", {}).get("lord", {}).get("name"),
+                # Additional info
+                "additional_info": nd.get("additional_info", {}),
+                # Mangal dosha (full)
+                "mangal_dosha": kundli_data.get("mangal_dosha", {}).get("has_dosha"),
+                "mangal_dosha_description": kundli_data.get("mangal_dosha", {}).get("description"),
+                # Yogas
+                "yoga_details": kundli_data.get("yoga_details", []),
+            }
+
+            # 3. Advanced kundli — Dasha periods
+            try:
+                from src.services.prokerala_service import get_kundli_advanced
+                adv_data = await get_kundli_advanced(
+                    body.date_of_birth, body.time_of_birth, latitude, longitude, timezone_offset,
+                )
+                adv = adv_data.get("data", {})
+                birth_chart["dasha_periods"] = adv.get("dasha_periods", [])
+                birth_chart["dasha_balance"] = adv.get("dasha_balance", {})
+            except Exception:
+                pass
+
         except Exception:
-            pass
+            # Still save whatever planet data we got
+            birth_chart = {"planets": planet_map, "planet_position": []}
+
     except Exception:
         pass  # Non-blocking — user can still register without astrology data
 
@@ -196,48 +236,89 @@ async def update_profile(
                 pass
 
         try:
-            from src.services.prokerala_service import get_birth_chart, get_planet_positions
+            from src.services.prokerala_service import get_birth_chart, get_planet_positions, get_kundli_advanced
 
-            planet_data = await get_planet_positions(
-                user.date_of_birth,
-                user.time_of_birth,
-                latitude,
-                longitude,
-                timezone_offset,
-            )
             vedic_to_western = {
                 "Mesha": "Aries", "Vrishabha": "Taurus", "Mithuna": "Gemini",
                 "Karka": "Cancer", "Simha": "Leo", "Kanya": "Virgo",
                 "Tula": "Libra", "Vrischika": "Scorpio", "Dhanu": "Sagittarius",
                 "Makara": "Capricorn", "Kumbha": "Aquarius", "Meena": "Pisces",
             }
-            planets = planet_data.get("data", {}).get("planet_position", [])
+
+            # Planet positions
             planet_map = {}
-            for planet in planets:
-                rasi_name = planet.get("rasi", {}).get("name", "")
-                western_name = vedic_to_western.get(rasi_name, rasi_name)
-                planet_map[planet["name"]] = western_name
-                if planet.get("name") == "Sun":
-                    user.zodiac_sign = western_name
-                elif planet.get("name") == "Moon":
-                    user.moon_sign = western_name
+            planet_positions_raw = []
+            try:
+                planet_data = await get_planet_positions(
+                    user.date_of_birth, user.time_of_birth, latitude, longitude, timezone_offset,
+                )
+                planet_positions_raw = planet_data.get("data", {}).get("planet_position", [])
+                for planet in planet_positions_raw:
+                    rasi_name = planet.get("rasi", {}).get("name", "")
+                    western_name = vedic_to_western.get(rasi_name, rasi_name)
+                    planet_map[planet["name"]] = western_name
+                    if planet.get("name") == "Sun":
+                        user.zodiac_sign = western_name
+                    elif planet.get("name") == "Moon":
+                        user.moon_sign = western_name
+            except Exception:
+                pass
 
-            birth_chart = {"planets": planet_map, "raw": planet_data.get("data")}
-
+            # Kundli — comprehensive
+            birth_chart = {"planets": planet_map, "planet_position": []}
             try:
                 chart_data = await get_birth_chart(
-                    user.date_of_birth,
-                    user.time_of_birth,
-                    latitude,
-                    longitude,
-                    timezone_offset,
+                    user.date_of_birth, user.time_of_birth, latitude, longitude, timezone_offset,
                 )
-                nakshatra = chart_data.get("data", {}).get("nakshatra_details", {})
-                zodiac = nakshatra.get("zodiac", {}).get("name")
+                kundli_data = chart_data.get("data", {})
+                nd = kundli_data.get("nakshatra_details", {})
+
+                zodiac = nd.get("zodiac", {}).get("name")
                 if zodiac:
                     user.ascendant = zodiac
-                birth_chart["nakshatra"] = nakshatra.get("nakshatra", {}).get("name")
-                birth_chart["mangal_dosha"] = chart_data.get("data", {}).get("mangal_dosha", {}).get("has_dosha")
+                if not user.zodiac_sign:
+                    soorya = nd.get("soorya_rasi", {}).get("name", "")
+                    user.zodiac_sign = vedic_to_western.get(soorya, soorya) or None
+                if not user.moon_sign:
+                    chandra = nd.get("chandra_rasi", {}).get("name", "")
+                    user.moon_sign = vedic_to_western.get(chandra, chandra) or None
+
+                birth_chart = {
+                    "planets": planet_map,
+                    "planet_position": [
+                        {
+                            "name": p.get("name"), "longitude": p.get("longitude"),
+                            "degree": p.get("degree"), "position": p.get("position"),
+                            "is_retrograde": p.get("is_retrograde", False),
+                            "rasi": p.get("rasi", {}).get("name"),
+                            "rasi_lord": p.get("rasi", {}).get("lord", {}).get("name"),
+                        }
+                        for p in planet_positions_raw
+                    ],
+                    "nakshatra": nd.get("nakshatra", {}).get("name"),
+                    "nakshatra_lord": nd.get("nakshatra", {}).get("lord", {}).get("name"),
+                    "nakshatra_pada": nd.get("nakshatra", {}).get("pada"),
+                    "soorya_rasi": nd.get("soorya_rasi", {}).get("name"),
+                    "soorya_rasi_lord": nd.get("soorya_rasi", {}).get("lord", {}).get("name"),
+                    "chandra_rasi": nd.get("chandra_rasi", {}).get("name"),
+                    "chandra_rasi_lord": nd.get("chandra_rasi", {}).get("lord", {}).get("name"),
+                    "additional_info": nd.get("additional_info", {}),
+                    "mangal_dosha": kundli_data.get("mangal_dosha", {}).get("has_dosha"),
+                    "mangal_dosha_description": kundli_data.get("mangal_dosha", {}).get("description"),
+                    "yoga_details": kundli_data.get("yoga_details", []),
+                }
+
+                # Dasha periods from advanced endpoint
+                try:
+                    adv_data = await get_kundli_advanced(
+                        user.date_of_birth, user.time_of_birth, latitude, longitude, timezone_offset,
+                    )
+                    adv = adv_data.get("data", {})
+                    birth_chart["dasha_periods"] = adv.get("dasha_periods", [])
+                    birth_chart["dasha_balance"] = adv.get("dasha_balance", {})
+                except Exception:
+                    pass
+
             except Exception:
                 pass
 

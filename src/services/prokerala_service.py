@@ -89,6 +89,31 @@ async def get_planet_positions(
         return response.json()
 
 
+async def get_kundli_advanced(
+    date_of_birth: str,
+    time_of_birth: str,
+    latitude: float,
+    longitude: float,
+    timezone_offset: float,
+) -> dict:
+    """Fetch advanced Kundli (includes dasha periods + balance)."""
+    token = await _get_token()
+    datetime_str = f"{date_of_birth}T{time_of_birth}:00{_format_tz(timezone_offset)}"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{BASE_URL}/kundli/advanced",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "datetime": datetime_str,
+                "coordinates": f"{latitude},{longitude}",
+                "ayanamsa": 1,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+
 def _format_tz(offset: float) -> str:
     """Convert numeric timezone offset to ISO format (+05:30)."""
     sign = "+" if offset >= 0 else "-"
