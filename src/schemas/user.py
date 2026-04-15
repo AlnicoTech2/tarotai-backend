@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     date_of_birth: str  # YYYY-MM-DD
     time_of_birth: str  # HH:MM
     time_of_birth_known: bool = True
+    language: str = "en"
     city_of_birth: str
     latitude: float | None = None
     longitude: float | None = None
@@ -20,6 +21,7 @@ class UserUpdate(BaseModel):
     city_of_birth: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    language: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -30,6 +32,7 @@ class UserResponse(BaseModel):
     date_of_birth: str
     time_of_birth: str
     time_of_birth_known: bool
+    language: str
     city_of_birth: str
     zodiac_sign: str | None
     moon_sign: str | None

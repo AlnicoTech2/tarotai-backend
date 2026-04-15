@@ -164,6 +164,7 @@ async def register(
         date_of_birth=body.date_of_birth,
         time_of_birth=body.time_of_birth,
         time_of_birth_known=body.time_of_birth_known,
+        language=body.language,
         city_of_birth=body.city_of_birth,
         latitude=latitude,
         longitude=longitude,
@@ -207,6 +208,8 @@ async def update_profile(
         user.latitude = body.latitude
     if body.longitude is not None:
         user.longitude = body.longitude
+    if body.language is not None:
+        user.language = body.language
 
     # If birth data changed, re-fetch astrology data
     birth_data_changed = any(
