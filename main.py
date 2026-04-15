@@ -247,3 +247,50 @@ async def support_page():
 
 <div class="footer">&copy; 2025 {COMPANY}. All rights reserved.</div>
 </div></body></html>"""
+
+
+@app.get("/refund", response_class=HTMLResponse)
+async def refund_page():
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Refund & Cancellation Policy — {APP_NAME}</title>{LEGAL_PAGE_STYLE}</head><body><div class="container">
+<h1>Refund & Cancellation Policy</h1>
+<p class="subtitle">{APP_NAME} by {COMPANY}</p>
+
+<h2>Subscription Cancellation</h2>
+<p>You may cancel your {APP_NAME} subscription at any time through the in-app settings or by contacting our support team. Your subscription will remain active until the end of the current billing period, after which it will not auto-renew.</p>
+
+<h2>Refund Eligibility</h2>
+<p>We offer refunds in the following cases:</p>
+<ul>
+<li><strong>Technical issues:</strong> If you experience persistent technical problems that prevent you from using the app and our support team is unable to resolve them within 7 days.</li>
+<li><strong>Accidental purchase:</strong> Refund requests for accidental purchases must be submitted within 48 hours of the transaction.</li>
+<li><strong>Service unavailability:</strong> If the app or its core features are unavailable for an extended period (more than 7 consecutive days).</li>
+</ul>
+
+<h2>Non-Refundable Items</h2>
+<ul>
+<li>Subscription periods that have already been used or partially consumed.</li>
+<li>One-time purchases consumed within the app (single readings, premium card spreads).</li>
+<li>Subscriptions cancelled after 48 hours of the original purchase.</li>
+</ul>
+
+<h2>How to Request a Refund</h2>
+<p>To request a refund, please email us at <a href="mailto:{SUPPORT_EMAIL}">{SUPPORT_EMAIL}</a> with the following details:</p>
+<ul>
+<li>Your registered email address</li>
+<li>Transaction ID or payment reference</li>
+<li>Reason for the refund request</li>
+<li>Date of the transaction</li>
+</ul>
+
+<h2>Refund Processing Time</h2>
+<p>Approved refunds will be processed within 7-14 business days to the original payment method. The actual time for the refund to reflect in your account depends on your bank or payment provider.</p>
+
+<h2>Auto-Renewal</h2>
+<p>All subscriptions auto-renew unless cancelled at least 24 hours before the end of the current period. You can manage and cancel auto-renewal in your Razorpay payment account or by contacting our support team.</p>
+
+<h2>Contact Us</h2>
+<p>For any questions about refunds or cancellations, please contact: <a href="mailto:{SUPPORT_EMAIL}">{SUPPORT_EMAIL}</a></p>
+
+<div class="footer">&copy; 2025 {COMPANY}. All rights reserved.</div>
+</div></body></html>"""

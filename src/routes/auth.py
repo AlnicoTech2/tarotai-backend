@@ -360,3 +360,53 @@ async def get_me(
     if not user:
         raise HTTPException(status_code=404, detail="User not found. Please register first.")
     return user
+
+
+@router.delete("/account", status_code=status.HTTP_200_OK)
+async def delete_account(
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete user account and all associated data.
+
+    DPDP Act 2023 compliance — synchronous hard delete.
+
+    NOTE: This endpoint does NOT cancel autopay/subscriptions. Per project
+    policy, subscription cancellation is handled exclusively via support
+    email. Users must email support to cancel autopay separately.
+    """
+    uid = firebase_user["uid"]
+
+    result = await db.execute(select(User).where(User.firebase_uid == uid))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    user_id = user.id
+
+    try:
+        # Delete all readings (RAG embeddings + reading text)
+        from src.models.reading import Reading
+        from sqlalchemy import delete
+
+        await db.execute(delete(Reading).where(Reading.user_id == user_id))
+
+        # Delete user record (point of no return)
+        await db.delete(user)
+        await db.commit()
+
+        # Delete Firebase auth user (best-effort, non-fatal)
+        try:
+            from firebase_admin import auth as firebase_admin_auth
+            firebase_admin_auth.delete_user(uid)
+        except Exception:
+            pass  # Firebase deletion is non-fatal — DB cleanup already done
+
+        return {"success": True, "message": "Account deleted permanently."}
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Account deletion failed: {str(e)}",
+        )
