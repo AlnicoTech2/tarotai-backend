@@ -79,6 +79,11 @@ APP_CONFIG = {
     "review_high_rating_cooldown_days": 60,
     "review_low_rating_cooldown_days": 30,
     "review_prompt_delay_ms": 2500,
+
+    # Razorpay (public — key_id only, NEVER expose key_secret)
+    # Frontend Razorpay SDK uses key_id to initialize. Plan IDs added later.
+    "razorpay_key_id": "rzp_live_Sdkr8O1jCrVrFN",
+    "razorpay_currency": "INR",
 }
 
 

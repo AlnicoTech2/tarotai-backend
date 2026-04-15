@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     prokerala_client_secret: str = ""
 
     # Razorpay
+    razorpay_mid: str = ""
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
