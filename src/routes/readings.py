@@ -15,7 +15,7 @@ from src.services.reading_service import generate_reading
 
 router = APIRouter(prefix="/readings", tags=["readings"])
 
-FREE_MONTHLY_LIMIT = 100  # TODO: revert to 3 before prod
+FREE_MONTHLY_LIMIT = 3  # Free users get 3 readings/month. Admins/premium = unlimited.
 
 
 @router.post("/", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
@@ -36,12 +36,8 @@ async def create_reading(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Reviewer account — unlimited readings
-    REVIEWER_UID = "tJARnw4OcmgB4oufGHi1y7I2h2B2"
-    is_reviewer = firebase_user["uid"] == REVIEWER_UID
-
-    # Check reading quota for free users (skip for reviewer)
-    if not user.is_premium and not is_reviewer:
+    # Admin/premium users — unlimited readings
+    if not user.is_premium and not user.is_admin:
         now = datetime.now(timezone.utc)
 
         # Reset counter if new month

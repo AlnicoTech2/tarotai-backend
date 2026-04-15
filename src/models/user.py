@@ -33,6 +33,9 @@ class User(Base):
     moon_sign: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ascendant: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    # Admin / Reviewer
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Subscription
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
     razorpay_subscription_id: Mapped[str | None] = mapped_column(String(100), nullable=True)

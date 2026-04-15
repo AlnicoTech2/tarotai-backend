@@ -38,6 +38,7 @@ class UserResponse(BaseModel):
     moon_sign: str | None
     ascendant: str | None
     birth_chart: dict | None = None
+    is_admin: bool = False
     is_premium: bool
     subscription_plan: str | None
     created_at: datetime

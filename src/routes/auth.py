@@ -14,6 +14,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Reviewer account — fresh start on every login
 REVIEWER_UID = "tJARnw4OcmgB4oufGHi1y7I2h2B2"
 
+# Admin/reviewer email patterns — auto-set is_admin=True + is_premium=True
+ADMIN_EMAILS = {"admin@tarotai.com"}
+ADMIN_EMAIL_DOMAINS = ("@tarotai-test.com",)
+
+
+def _is_admin_email(email: str | None) -> bool:
+    if not email:
+        return False
+    e = email.lower().strip()
+    if e in ADMIN_EMAILS:
+        return True
+    return any(e.endswith(d) for d in ADMIN_EMAIL_DOMAINS)
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -156,10 +169,13 @@ async def register(
     except Exception:
         pass  # Non-blocking — user can still register without astrology data
 
+    email = firebase_user.get("email")
+    is_admin = _is_admin_email(email)
+
     user = User(
         firebase_uid=firebase_uid,
         name=body.name,
-        email=firebase_user.get("email"),
+        email=email,
         phone=firebase_user.get("phone_number"),
         date_of_birth=body.date_of_birth,
         time_of_birth=body.time_of_birth,
@@ -173,6 +189,8 @@ async def register(
         zodiac_sign=zodiac_sign,
         moon_sign=moon_sign,
         ascendant=ascendant,
+        is_admin=is_admin,
+        is_premium=is_admin,  # Admins auto-premium
     )
 
     db.add(user)
@@ -359,6 +377,13 @@ async def get_me(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found. Please register first.")
+
+    # Re-assert admin/premium for admin emails on every fetch (in case flags got reset)
+    if _is_admin_email(user.email) and (not user.is_admin or not user.is_premium):
+        user.is_admin = True
+        user.is_premium = True
+        await db.commit()
+
     return user
 
 

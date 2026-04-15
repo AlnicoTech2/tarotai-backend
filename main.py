@@ -49,9 +49,36 @@ async def health():
 # ── App config (no auth required) ──
 # Change these values to update app behavior without a rebuild
 APP_CONFIG = {
+    # Splash + quotas
     "splash_duration_ms": 3000,
     "free_readings_per_month": 3,
+
+    # Version control
     "min_app_version": "1.0.0",
+    "latest_app_version": "1.0.0",
+    "play_store_url": "https://play.google.com/store/apps/details?id=com.alnico.tarotai",
+    "update_force_title": "Update Required",
+    "update_force_message": "A new version of TarotAI is available. Please update to continue.",
+    "update_alert_title": "Update Available",
+    "update_alert_message": "A new version of TarotAI is available with improvements.",
+    "update_now_text": "Update Now",
+    "update_later_text": "Later",
+
+    # Maintenance mode
+    "maintenance_mode": False,
+    "maintenance_title": "Under Maintenance",
+    "maintenance_message": "TarotAI is under maintenance. We'll be back shortly!",
+
+    # Reviewer/admin login
+    "admin_tap_count": 10,
+    "admin_tap_reset_ms": 3000,
+
+    # In-app review prompt
+    "review_first_prompt_at": 3,
+    "review_repeat_prompt_at": 10,
+    "review_high_rating_cooldown_days": 60,
+    "review_low_rating_cooldown_days": 30,
+    "review_prompt_delay_ms": 2500,
 }
 
 
