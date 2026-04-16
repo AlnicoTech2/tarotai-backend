@@ -1,0 +1,198 @@
+"""Cron endpoints — called by EventBridge Scheduler.
+
+Protected by X-Cron-Secret header (not Firebase auth).
+These run on a schedule, not triggered by users.
+"""
+
+import logging
+from datetime import date, datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from src.core.config import get_settings
+from src.core.database import get_db
+from src.models.horoscope import Horoscope
+from src.models.user import User
+
+log = logging.getLogger("cron")
+settings = get_settings()
+
+router = APIRouter(prefix="/cron", tags=["cron"])
+
+CRON_SECRET = settings.app_secret_key  # Reuse app secret for cron auth
+
+ZODIAC_SIGNS = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+]
+
+HOROSCOPE_PROMPT = """You are an expert Vedic astrologer. Generate today's daily horoscope for {sign} ({vedic_name}).
+
+Rules:
+- Use Vedic (sidereal) astrology, NOT Western tropical
+- Reference current planetary transits naturally
+- Be specific, positive but honest — not generic fluff
+- Include 1 practical tip or action for the day
+- STRICT LIMIT: 60-80 words, 2-3 short paragraphs
+- Conversational tone, like texting a friend
+- {language_instruction}
+"""
+
+VEDIC_NAMES = {
+    "Aries": "Mesha", "Taurus": "Vrishabha", "Gemini": "Mithuna",
+    "Cancer": "Karka", "Leo": "Simha", "Virgo": "Kanya",
+    "Libra": "Tula", "Scorpio": "Vrischika", "Sagittarius": "Dhanu",
+    "Capricorn": "Makara", "Aquarius": "Kumbha", "Pisces": "Meena",
+}
+
+
+def _verify_cron_secret(request: Request):
+    """Verify the cron secret header."""
+    secret = request.headers.get("x-cron-secret", "")
+    if secret != CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+
+
+# ─────────────────────────────────────────────────────
+# HOROSCOPE GENERATION
+# ─────────────────────────────────────────────────────
+
+
+@router.post("/generate-horoscopes", status_code=status.HTTP_200_OK)
+async def generate_horoscopes(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate daily horoscopes for all 12 zodiac signs.
+
+    Called by EventBridge Scheduler at midnight IST.
+    Deletes old horoscopes for today (idempotent) then generates fresh ones.
+    """
+    _verify_cron_secret(request)
+
+    today = date.today()
+    log.info(f"Generating horoscopes for {today}")
+
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        temperature=0.85,
+        max_tokens=200,
+        api_key=settings.openai_api_key,
+    )
+
+    # Delete existing horoscopes for today (idempotent re-run)
+    await db.execute(delete(Horoscope).where(Horoscope.date == today))
+
+    generated = []
+    for sign in ZODIAC_SIGNS:
+        try:
+            prompt = HOROSCOPE_PROMPT.format(
+                sign=sign,
+                vedic_name=VEDIC_NAMES[sign],
+                language_instruction="Respond in English.",
+            )
+            response = await llm.ainvoke([
+                SystemMessage(content=prompt),
+                HumanMessage(content=f"Generate today's horoscope for {sign} for {today.strftime('%B %d, %Y')}."),
+            ])
+
+            horoscope = Horoscope(
+                sign=sign,
+                date=today,
+                horoscope_text=response.content,
+                language="en",
+            )
+            db.add(horoscope)
+            generated.append(sign)
+            log.info(f"Generated horoscope for {sign}")
+
+        except Exception as e:
+            log.error(f"Failed to generate horoscope for {sign}: {e}")
+
+    await db.commit()
+    log.info(f"Generated {len(generated)}/12 horoscopes for {today}")
+
+    return {
+        "date": str(today),
+        "generated": len(generated),
+        "signs": generated,
+    }
+
+
+# ─────────────────────────────────────────────────────
+# FCM PUSH NOTIFICATION
+# ─────────────────────────────────────────────────────
+
+
+@router.post("/send-daily-push", status_code=status.HTTP_200_OK)
+async def send_daily_push(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send daily push notification to all users with FCM tokens.
+
+    Called by EventBridge Scheduler at 8am IST.
+    """
+    _verify_cron_secret(request)
+
+    # Get all users with FCM tokens
+    result = await db.execute(
+        select(User.fcm_token, User.name, User.zodiac_sign)
+        .where(User.fcm_token.isnot(None))
+        .where(User.fcm_token != "")
+    )
+    users = result.all()
+
+    if not users:
+        log.info("No users with FCM tokens — skipping push")
+        return {"sent": 0, "total": 0}
+
+    from firebase_admin import messaging
+
+    sent_count = 0
+    failed_count = 0
+
+    for fcm_token, name, zodiac_sign in users:
+        try:
+            first_name = (name or "").split(" ")[0] or "Seeker"
+            title = "Your daily tarot reading is ready"
+            body = f"{first_name}, the stars have a message for you today."
+
+            if zodiac_sign:
+                body = f"{first_name}, today's {zodiac_sign} horoscope is here."
+
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                token=fcm_token,
+                data={
+                    "type": "daily_reminder",
+                    "click_action": "OPEN_APP",
+                },
+            )
+            messaging.send(message)
+            sent_count += 1
+
+        except messaging.UnregisteredError:
+            # Token expired — clear it
+            await db.execute(
+                select(User)
+                .where(User.fcm_token == fcm_token)
+            )
+            # Mark token as invalid
+            log.info(f"FCM token expired, clearing: {fcm_token[:20]}...")
+
+        except Exception as e:
+            failed_count += 1
+            log.error(f"FCM send failed: {e}")
+
+    await db.commit()
+    log.info(f"Push sent: {sent_count}/{len(users)}, failed: {failed_count}")
+
+    return {"sent": sent_count, "total": len(users), "failed": failed_count}

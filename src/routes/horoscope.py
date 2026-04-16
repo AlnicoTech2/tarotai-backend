@@ -1,6 +1,11 @@
-from fastapi import APIRouter, Depends
+from datetime import date
 
-from src.core.redis import get_redis
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db
+from src.models.horoscope import Horoscope
 
 router = APIRouter(prefix="/horoscope", tags=["horoscope"])
 
@@ -11,41 +16,54 @@ ZODIAC_SIGNS = [
 
 
 @router.get("/{sign}")
-async def get_daily_horoscope(sign: str):
+async def get_daily_horoscope(sign: str, db: AsyncSession = Depends(get_db)):
     """Get today's horoscope for a zodiac sign. Pre-computed by nightly cron."""
-    sign = sign.lower()
-    if sign not in ZODIAC_SIGNS:
+    sign_lower = sign.lower()
+    sign_title = sign_lower.capitalize()
+
+    if sign_lower not in ZODIAC_SIGNS:
         return {"error": f"Invalid sign. Options: {ZODIAC_SIGNS}"}
 
-    from datetime import date
-    today = date.today().isoformat()
+    today = date.today()
 
-    try:
-        redis = await get_redis()
-        cache_key = f"horoscope:{today}:{sign}"
-        horoscope = await redis.get(cache_key)
-        if horoscope:
-            return {"sign": sign, "date": today, "horoscope": horoscope}
-    except Exception:
-        pass
+    result = await db.execute(
+        select(Horoscope)
+        .where(Horoscope.sign == sign_title)
+        .where(Horoscope.date == today)
+        .limit(1)
+    )
+    horoscope = result.scalar_one_or_none()
 
-    return {"sign": sign, "date": today, "horoscope": "Horoscope not yet generated for today. Check back soon."}
+    if horoscope:
+        return {
+            "sign": sign_title,
+            "date": str(today),
+            "horoscope": horoscope.horoscope_text,
+        }
+
+    return {
+        "sign": sign_title,
+        "date": str(today),
+        "horoscope": "Horoscope not yet generated for today. Check back soon.",
+    }
 
 
 @router.get("/")
-async def get_all_horoscopes():
+async def get_all_horoscopes(db: AsyncSession = Depends(get_db)):
     """Get today's horoscopes for all zodiac signs."""
-    from datetime import date
-    today = date.today().isoformat()
+    today = date.today()
 
-    result = {}
-    try:
-        redis = await get_redis()
-        for sign in ZODIAC_SIGNS:
-            cache_key = f"horoscope:{today}:{sign}"
-            horoscope = await redis.get(cache_key)
-            result[sign] = horoscope or "Not yet generated"
-    except Exception:
-        result = {sign: "Not yet generated" for sign in ZODIAC_SIGNS}
+    result = await db.execute(
+        select(Horoscope).where(Horoscope.date == today)
+    )
+    horoscopes = result.scalars().all()
 
-    return {"date": today, "horoscopes": result}
+    horoscope_map = {h.sign.lower(): h.horoscope_text for h in horoscopes}
+
+    return {
+        "date": str(today),
+        "horoscopes": {
+            sign: horoscope_map.get(sign, "Not yet generated")
+            for sign in ZODIAC_SIGNS
+        },
+    }

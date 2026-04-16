@@ -1,5 +1,5 @@
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -385,6 +385,28 @@ async def get_me(
         await db.commit()
 
     return user
+
+
+@router.post("/fcm-token", status_code=status.HTTP_200_OK)
+async def update_fcm_token(
+    request: Request,
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Store/update the user's FCM push notification token."""
+    body = await request.json()
+    token = body.get("token", "")
+
+    result = await db.execute(
+        select(User).where(User.firebase_uid == firebase_user["uid"])
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.fcm_token = token
+    await db.commit()
+    return {"success": True}
 
 
 @router.delete("/account", status_code=status.HTTP_200_OK)

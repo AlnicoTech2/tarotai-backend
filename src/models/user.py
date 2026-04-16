@@ -48,6 +48,9 @@ class User(Base):
     free_readings_used: Mapped[int] = mapped_column(default=0)
     free_readings_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # FCM push token
+    fcm_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
