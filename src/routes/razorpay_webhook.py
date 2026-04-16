@@ -90,7 +90,14 @@ async def razorpay_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
     event_type = payload.get("event", "unknown")
-    log.info(f"webhook event received: {event_type}")
+    event_id = request.headers.get("x-razorpay-event-id", "")
+    created_at = payload.get("created_at", 0)
+    log.info(f"webhook event received: {event_type} id={event_id}")
+
+    # Replay protection: reject events older than 72 hours
+    if created_at and (int(datetime.now(timezone.utc).timestamp()) - created_at) > 259200:
+        log.warning(f"webhook: stale event={event_type} — dropped")
+        return {"status": "ok", "event": event_type, "note": "stale"}
 
     # 3. Process event — wrap in get_db generator
     gen = get_db()
@@ -121,9 +128,10 @@ async def _dispatch_event(session, event_type: str, payload: dict):
     if event_type in {
         "subscription.activated",
         "subscription.authenticated",
-        "subscription.charged",
     }:
         await _handle_subscription_active(session, entity)
+    elif event_type == "subscription.charged":
+        await _handle_subscription_charged(session, entity)
     elif event_type in {
         "subscription.cancelled",
         "subscription.completed",
@@ -188,6 +196,51 @@ async def _handle_subscription_active(session, entity: dict):
         f"sub active: user={user.id} sub={sub_id} plan={tier} "
         f"expires={expires_at.isoformat()}"
     )
+
+
+async def _handle_subscription_charged(session, entity: dict):
+    """Subscription charged — detect trial addon vs regular recurring charge."""
+    from main import APP_CONFIG
+    sub = entity.get("subscription", {}).get("entity", {})
+    payment = entity.get("payment", {}).get("entity", {})
+    sub_id = sub.get("id")
+    notes = sub.get("notes") or {}
+    user_email = notes.get("email")
+
+    trial_price_paise = APP_CONFIG.get("trial_price", 5) * 100
+    is_addon_charge = (
+        payment
+        and payment.get("amount", 0) <= trial_price_paise
+        and not sub.get("current_end")
+    )
+
+    user = await _find_user_by_subscription_id(session, sub_id) if sub_id else None
+    if not user and user_email:
+        user = await _find_user_by_email(session, user_email)
+    if not user:
+        log.warning(f"sub charged: user not found for sub={sub_id}")
+        return
+
+    if is_addon_charge:
+        # Trial addon — upgrade with trial-specific end date
+        trial_days = int(notes.get("trial_days", APP_CONFIG.get("trial_days", 1)))
+        trial_end = datetime.now(timezone.utc) + timedelta(days=trial_days)
+        user.is_premium = True
+        user.has_subscribed_before = True
+        user.razorpay_subscription_id = sub_id
+        user.subscription_plan = "monthly"
+        user.subscription_expires_at = trial_end
+        log.info(f"sub charged (trial addon): user={user.id} trial_end={trial_end.isoformat()}")
+    else:
+        # Regular recurring charge
+        current_end = _parse_razorpay_epoch(sub.get("current_end"))
+        expires_at = current_end or (datetime.now(timezone.utc) + timedelta(days=30))
+        user.is_premium = True
+        user.has_subscribed_before = True
+        user.razorpay_subscription_id = sub_id
+        user.subscription_plan = "monthly"
+        user.subscription_expires_at = expires_at
+        log.info(f"sub charged (recurring): user={user.id} expires={expires_at.isoformat()}")
 
 
 async def _handle_subscription_inactive(session, entity: dict, event_type: str):

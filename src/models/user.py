@@ -42,6 +42,8 @@ class User(Base):
     subscription_plan: Mapped[str | None] = mapped_column(String(20), nullable=True)  # weekly/monthly/yearly
     subscription_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    has_subscribed_before: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Reading stats
     free_readings_used: Mapped[int] = mapped_column(default=0)
     free_readings_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

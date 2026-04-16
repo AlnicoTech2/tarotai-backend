@@ -36,6 +36,12 @@ async def create_reading(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Auto-downgrade: if subscription expired, revoke premium
+    if user.is_premium and not user.is_admin and user.subscription_expires_at:
+        if user.subscription_expires_at < datetime.now(timezone.utc):
+            user.is_premium = False
+            user.subscription_plan = None
+
     # Admin/premium users — unlimited readings
     if not user.is_premium and not user.is_admin:
         now = datetime.now(timezone.utc)

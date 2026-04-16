@@ -40,6 +40,7 @@ class UserResponse(BaseModel):
     birth_chart: dict | None = None
     is_admin: bool = False
     is_premium: bool
+    has_subscribed_before: bool = False
     subscription_plan: str | None
     created_at: datetime
 

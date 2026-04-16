@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.config import get_settings
 from src.core.firebase import init_firebase
-from src.routes import auth, readings, cards, horoscope, daily_card, razorpay_webhook
+from src.routes import auth, readings, cards, horoscope, daily_card, razorpay_webhook, subscription
 
 settings = get_settings()
 
@@ -40,6 +40,7 @@ app.include_router(cards.router, prefix="/api/v1")
 app.include_router(horoscope.router, prefix="/api/v1")
 app.include_router(daily_card.router, prefix="/api/v1")
 app.include_router(razorpay_webhook.router, prefix="/api/v1")
+app.include_router(subscription.router, prefix="/api/v1")
 
 
 @app.get("/health")
@@ -82,9 +83,32 @@ APP_CONFIG = {
     "review_prompt_delay_ms": 2500,
 
     # Razorpay (public — key_id only, NEVER expose key_secret)
-    # Frontend Razorpay SDK uses key_id to initialize. Plan IDs added later.
     "razorpay_key_id": "rzp_live_Sdkr8O1jCrVrFN",
     "razorpay_currency": "INR",
+
+    # Razorpay plan config (backend-only IDs stripped from client response)
+    "razorpay_monthly_plan_id": "plan_Se3K2RDOLnd0VY",
+    "razorpay_monthly_label": "TarotAI Premium Monthly",
+    "razorpay_monthly_cycles": 131,
+
+    # Trial config
+    "trial_enabled": True,
+    "trial_price": 5,
+    "trial_days": 1,
+    "trial_addon_name": "Trial Access Fee",
+    "trial_title": "Premium Trial",
+    "trial_description": "",
+    "trial_gateway_text": "(Pay only Gateway Charges)",
+    "trial_save_text": "Save 95%",
+
+    # Paywall display prices
+    "subscription_monthly_price": "\u20b999",
+    "subscription_monthly_original_price": "\u20b9299",
+    "subscription_monthly_save": "67%",
+
+    # Paywall plan visibility (config-driven toggle)
+    "paywall_new_user_plans": ["trial"],
+    "paywall_returning_user_plans": ["monthly"],
 }
 
 
