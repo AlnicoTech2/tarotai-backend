@@ -103,8 +103,6 @@ APP_CONFIG = {
 
     # Paywall display prices
     "subscription_monthly_price": "\u20b999",
-    "subscription_monthly_original_price": "\u20b9299",
-    "subscription_monthly_save": "67%",
 
     # Paywall plan visibility (config-driven toggle)
     "paywall_new_user_plans": ["trial"],
