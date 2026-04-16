@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.database import get_db
-from src.core.firebase import get_current_user
+from src.middleware.auth import get_current_user
 from src.models.user import User
 
 log = logging.getLogger("subscription")
