@@ -48,6 +48,11 @@ class User(Base):
     free_readings_used: Mapped[int] = mapped_column(default=0)
     free_readings_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Profile details
+    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    relationship_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    occupation: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
     # FCM push token
     fcm_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

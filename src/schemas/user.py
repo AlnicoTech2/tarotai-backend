@@ -9,7 +9,10 @@ class UserCreate(BaseModel):
     time_of_birth: str  # HH:MM
     time_of_birth_known: bool = True
     language: str = "en"
+    gender: str | None = None
     city_of_birth: str
+    relationship_status: str | None = None
+    occupation: str | None = None
     latitude: float | None = None
     longitude: float | None = None
 
@@ -22,6 +25,9 @@ class UserUpdate(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     language: str | None = None
+    gender: str | None = None
+    relationship_status: str | None = None
+    occupation: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -38,6 +44,9 @@ class UserResponse(BaseModel):
     moon_sign: str | None
     ascendant: str | None
     birth_chart: dict | None = None
+    gender: str | None = None
+    relationship_status: str | None = None
+    occupation: str | None = None
     is_admin: bool = False
     is_premium: bool
     has_subscribed_before: bool = False

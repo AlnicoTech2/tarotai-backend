@@ -102,6 +102,14 @@ def build_reading_prompt(
     """Build the full user prompt with all context for the LLM."""
     parts = [f"User: {user.name}"]
 
+    # Personal context
+    if user.gender:
+        parts.append(f"Gender: {user.gender}")
+    if user.relationship_status and user.relationship_status != "prefer_not_to_say":
+        parts.append(f"Relationship: {user.relationship_status}")
+    if user.occupation and user.occupation != "prefer_not_to_say":
+        parts.append(f"Occupation: {user.occupation}")
+
     # Birth chart context
     if user.zodiac_sign:
         parts.append(f"Sun sign: {user.zodiac_sign}")
