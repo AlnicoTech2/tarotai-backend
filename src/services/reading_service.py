@@ -12,11 +12,21 @@ from src.models.user import User
 
 settings = get_settings()
 
-llm = ChatOpenAI(
+# First reading — GPT-4o (premium quality, first impression)
+llm_primary = ChatOpenAI(
     model="gpt-4o",
     api_key=settings.openai_api_key,
     temperature=0.85,
-    max_tokens=800,
+    max_tokens=300,
+    streaming=True,
+)
+
+# Follow-up chat — GPT-4o-mini (3x faster, good enough for conversation)
+llm_followup = ChatOpenAI(
+    model="gpt-4o-mini",
+    api_key=settings.openai_api_key,
+    temperature=0.85,
+    max_tokens=300,
     streaming=True,
 )
 
@@ -162,6 +172,9 @@ async def generate_reading(
     # Build system prompt in user's language
     user_language = getattr(user, "language", None) or "en"
     system_prompt = build_system_prompt(user_language)
+
+    # Pick model: first reading (no question) = GPT-4o, follow-up (has question) = GPT-4o-mini
+    llm = llm_followup if question else llm_primary
 
     # Generate reading via LLM
     messages = [
