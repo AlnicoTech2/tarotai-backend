@@ -28,18 +28,77 @@ def _is_admin_email(email: str | None) -> bool:
     return any(e.endswith(d) for d in ADMIN_EMAIL_DOMAINS)
 
 
+@router.post("/sync", response_model=UserResponse)
+async def sync_user(
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sync Firebase user to DB. Creates stub if new, returns existing if not.
+
+    Called on every app launch after Google Sign-In. Idempotent.
+    Stub user has: firebase_uid, email, name (from Google profile).
+    Onboarding (POST /register) fills in DOB/TOB/city/etc later.
+    """
+    uid = firebase_user["uid"]
+    email = firebase_user.get("email")
+    name = firebase_user.get("name") or firebase_user.get("display_name") or ""
+
+    # Reviewer wipe logic
+    if uid == REVIEWER_UID:
+        result = await db.execute(select(User).where(User.firebase_uid == uid))
+        reviewer = result.scalar_one_or_none()
+        if reviewer:
+            from src.models.reading import Reading
+            from sqlalchemy import delete
+            await db.execute(delete(Reading).where(Reading.user_id == reviewer.id))
+            await db.delete(reviewer)
+            await db.commit()
+
+    # Check if user exists
+    result = await db.execute(select(User).where(User.firebase_uid == uid))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Re-assert admin/premium for admin emails
+        if _is_admin_email(user.email) and (not user.is_admin or not user.is_premium):
+            user.is_admin = True
+            user.is_premium = True
+            await db.commit()
+        return user
+
+    # Create stub — minimal record for paywall to work
+    is_admin = _is_admin_email(email)
+    user = User(
+        firebase_uid=uid,
+        name=name,
+        email=email,
+        date_of_birth="1990-01-01",  # placeholder, updated during onboarding
+        time_of_birth="12:00",       # placeholder
+        city_of_birth="",            # placeholder
+        is_admin=is_admin,
+        is_premium=is_admin,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     body: UserCreate,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new user after Firebase auth. Fetches birth chart from Prokerala."""
+    """Register/complete user profile. Updates stub created by /sync with full birth data."""
     firebase_uid = firebase_user["uid"]
 
-    # Check if user already exists
-    existing = await db.execute(select(User).where(User.firebase_uid == firebase_uid))
-    if existing.scalar_one_or_none():
+    # Find existing stub (created by /sync) or check for full registration
+    existing_result = await db.execute(select(User).where(User.firebase_uid == firebase_uid))
+    existing_user = existing_result.scalar_one_or_none()
+
+    # If fully registered (has city_of_birth), reject duplicate
+    if existing_user and existing_user.city_of_birth and existing_user.city_of_birth.strip():
         raise HTTPException(status_code=409, detail="User already registered")
 
     # Use client-provided coordinates or geocode as fallback
@@ -172,33 +231,58 @@ async def register(
     email = firebase_user.get("email")
     is_admin = _is_admin_email(email)
 
-    user = User(
-        firebase_uid=firebase_uid,
-        name=body.name,
-        email=email,
-        phone=firebase_user.get("phone_number"),
-        date_of_birth=body.date_of_birth,
-        time_of_birth=body.time_of_birth,
-        time_of_birth_known=body.time_of_birth_known,
-        language=body.language,
-        gender=body.gender,
-        city_of_birth=body.city_of_birth,
-        relationship_status=body.relationship_status,
-        occupation=body.occupation,
-        latitude=latitude,
-        longitude=longitude,
-        timezone_offset=timezone_offset,
-        birth_chart=birth_chart,
-        zodiac_sign=zodiac_sign,
-        moon_sign=moon_sign,
-        ascendant=ascendant,
-        is_admin=is_admin,
-        is_premium=is_admin,  # Admins auto-premium
-    )
+    if existing_user:
+        # Update stub with full profile data
+        user = existing_user
+        user.name = body.name
+        user.email = email
+        user.phone = firebase_user.get("phone_number")
+        user.date_of_birth = body.date_of_birth
+        user.time_of_birth = body.time_of_birth
+        user.time_of_birth_known = body.time_of_birth_known
+        user.language = body.language
+        user.gender = body.gender
+        user.city_of_birth = body.city_of_birth
+        user.relationship_status = body.relationship_status
+        user.occupation = body.occupation
+        user.latitude = latitude
+        user.longitude = longitude
+        user.timezone_offset = timezone_offset
+        user.birth_chart = birth_chart
+        user.zodiac_sign = zodiac_sign
+        user.moon_sign = moon_sign
+        user.ascendant = ascendant
+        user.is_admin = is_admin
+        if is_admin:
+            user.is_premium = True
+    else:
+        # No stub — create fresh (shouldn't happen if /sync was called)
+        user = User(
+            firebase_uid=firebase_uid,
+            name=body.name,
+            email=email,
+            phone=firebase_user.get("phone_number"),
+            date_of_birth=body.date_of_birth,
+            time_of_birth=body.time_of_birth,
+            time_of_birth_known=body.time_of_birth_known,
+            language=body.language,
+            gender=body.gender,
+            city_of_birth=body.city_of_birth,
+            relationship_status=body.relationship_status,
+            occupation=body.occupation,
+            latitude=latitude,
+            longitude=longitude,
+            timezone_offset=timezone_offset,
+            birth_chart=birth_chart,
+            zodiac_sign=zodiac_sign,
+            moon_sign=moon_sign,
+            ascendant=ascendant,
+            is_admin=is_admin,
+            is_premium=is_admin,
+        )
+        db.add(user)
 
-    db.add(user)
     await db.flush()
-
     return user
 
 
