@@ -88,3 +88,95 @@ async def get_daily_card(
         pass
 
     return response
+
+
+# ─────────────────────────────────────────────────────
+# DAILY YES/NO QUESTIONS
+# ─────────────────────────────────────────────────────
+
+QUESTIONS = {
+    "en": [
+        "Will today bring good news?",
+        "Is spicy food good for me today?",
+        "Should I travel today?",
+        "Will I meet an old friend today?",
+        "Will money come today?",
+        "Should I start something new today?",
+        "Will something happen in love life today?",
+        "Should I focus on health today?",
+        "Is shopping a good idea today?",
+        "Will I get a surprise today?",
+        "Is today a good day for investments?",
+        "Will I get a compliment today?",
+        "Should I take a risk today?",
+        "Will today be stressful?",
+        "Is today lucky for interviews?",
+        "Will I learn something new today?",
+        "Should I forgive someone today?",
+        "Will someone help me today?",
+        "Is today good for a new relationship?",
+        "Will I sleep well tonight?",
+    ],
+    "hinglish": [
+        "Kya aaj achhi khabar milegi?",
+        "Kya aaj spicy food suit karega?",
+        "Kya aaj travel karna sahi rahega?",
+        "Kya aaj koi purana dost milega?",
+        "Kya aaj paisa aayega?",
+        "Kya aaj naya kaam shuru karna chahiye?",
+        "Kya aaj love life mein kuch hoga?",
+        "Kya aaj health ka dhyan rakhna chahiye?",
+        "Kya aaj shopping karna sahi hai?",
+        "Kya aaj koi surprise milega?",
+        "Kya aaj investment ke liye achha din hai?",
+        "Kya aaj koi tareef karega?",
+        "Kya aaj risk lena chahiye?",
+        "Kya aaj stressful hoga?",
+        "Kya aaj interview ke liye lucky hai?",
+        "Kya aaj kuch naya seekhne ko milega?",
+        "Kya aaj kisi ko maaf karna chahiye?",
+        "Kya aaj koi madad karega?",
+        "Kya aaj naye rishte ke liye achha hai?",
+        "Kya aaj achhi neend aayegi?",
+    ],
+    "hi": [
+        "क्या आज अच्छी खबर मिलेगी?",
+        "क्या आज तीखा खाना सही रहेगा?",
+        "क्या आज यात्रा करना सही होगा?",
+        "क्या आज कोई पुराना दोस्त मिलेगा?",
+        "क्या आज पैसा आएगा?",
+        "क्या आज नया काम शुरू करना चाहिए?",
+        "क्या आज प्यार में कुछ होगा?",
+        "क्या आज स्वास्थ्य का ध्यान रखना चाहिए?",
+        "क्या आज शॉपिंग करना सही है?",
+        "क्या आज कोई सरप्राइज मिलेगा?",
+        "क्या आज निवेश के लिए अच्छा दिन है?",
+        "क्या आज कोई तारीफ करेगा?",
+        "क्या आज रिस्क लेना चाहिए?",
+        "क्या आज तनावपूर्ण होगा?",
+        "क्या आज इंटरव्यू के लिए शुभ है?",
+        "क्या आज कुछ नया सीखने को मिलेगा?",
+        "क्या आज किसी को माफ करना चाहिए?",
+        "क्या आज कोई मदद करेगा?",
+        "क्या आज नए रिश्ते के लिए अच्छा है?",
+        "क्या आज अच्छी नींद आएगी?",
+    ],
+}
+
+
+@router.get("/questions")
+async def get_daily_questions(
+    lang: str = "en",
+):
+    """Get 5 daily Yes/No questions rotated by day."""
+    today = date.today()
+    seed = int(today.strftime("%Y%m%d"))
+
+    questions = QUESTIONS.get(lang, QUESTIONS["en"])
+    total = len(questions)
+
+    # Pick 5 questions based on day (deterministic rotation)
+    indices = [(seed + i * 7) % total for i in range(5)]
+    selected = [questions[i] for i in indices]
+
+    return {"questions": selected, "date": today.isoformat(), "lang": lang}
