@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -165,6 +166,79 @@ async def get_today_three_card_reading(
         raise HTTPException(status_code=404, detail="No three-card reading today")
 
     return reading
+
+
+class FollowUpRequest(BaseModel):
+    question: str
+
+
+class FollowUpResponse(BaseModel):
+    reading_text: str
+
+
+@router.post("/{reading_id}/followup", response_model=FollowUpResponse)
+async def followup_reading(
+    reading_id: UUID,
+    body: FollowUpRequest,
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ask a follow-up question about an existing reading, using the same cards."""
+    from src.services.reading_service import (
+        build_reading_prompt,
+        build_system_prompt,
+        llm_followup,
+        get_past_reading_context,
+    )
+    from langchain_core.messages import SystemMessage, HumanMessage
+
+    # Get user
+    result = await db.execute(
+        select(User).where(User.firebase_uid == firebase_user["uid"])
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get original reading
+    result = await db.execute(
+        select(Reading).where(Reading.id == reading_id, Reading.user_id == user.id)
+    )
+    original = result.scalar_one_or_none()
+    if not original:
+        raise HTTPException(status_code=404, detail="Reading not found")
+
+    # Build prompt with original cards + new question
+    past_context = await get_past_reading_context(db, user.id)
+
+    # Reconstruct cards with keywords (not stored in DB, but card name is enough)
+    cards_for_prompt = [
+        {
+            "position": c["position"],
+            "card": c["card"],
+            "reversed": c.get("reversed", False),
+            "keywords_upright": [],
+            "keywords_reversed": [],
+        }
+        for c in original.cards
+    ]
+
+    user_prompt = build_reading_prompt(
+        user, cards_for_prompt, body.question, original.spread_type, past_context
+    )
+    # Add original reading context
+    user_prompt += f"\n\nPrevious reading for these cards:\n{original.reading_text}\n\nNow answer the follow-up question: {body.question}"
+
+    user_language = getattr(user, "language", None) or "en"
+    system_prompt = build_system_prompt(user_language)
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt),
+    ]
+    response = await llm_followup.ainvoke(messages)
+
+    return FollowUpResponse(reading_text=response.content)
 
 
 @router.get("/{reading_id}", response_model=ReadingResponse)
