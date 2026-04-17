@@ -93,7 +93,7 @@ APP_CONFIG = {
     "razorpay_monthly_cycles": 131,
 
     # Trial config
-    "trial_enabled": True,
+    "trial_enabled": False,
     "trial_price": 5,
     "trial_days": 1,
     "trial_addon_name": "Trial Access Fee",
