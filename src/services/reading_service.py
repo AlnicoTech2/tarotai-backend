@@ -76,6 +76,29 @@ Rules:
 SYSTEM_PROMPT = build_system_prompt("en")  # default fallback
 
 
+def build_yes_no_prompt(language: str = "en") -> str:
+    """System prompt specifically for Yes/No readings."""
+    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["en"])
+    return f"""You are an experienced Vedic astrologer and tarot reader giving a Yes/No reading.
+
+LANGUAGE: {lang_instruction}
+
+STRICT FORMAT — Follow this EXACTLY:
+1. First paragraph: Start with "YES" or "NO" in bold/caps on its own, followed by a brief 1-sentence reason based on the card drawn.
+2. Second paragraph: 2-3 sentences expanding on why, referencing the card and the user's birth chart if available. Be specific, not vague.
+3. Third paragraph: End with a hook — an engaging question or intriguing insight that makes the user want to ask more. Make them curious.
+
+Rules:
+- Address the user by name
+- Be direct — commit to YES or NO, don't hedge
+- For reversed cards, lean toward NO or "not yet"
+- Keep it conversational, like texting a wise friend
+- STRICT LIMIT: 60-80 words total. No more.
+- Never sign off with a name or signature
+- Never add disclaimers
+"""
+
+
 # ── Persona definitions ──
 PERSONA_PROMPTS = {
     "aarohi": "Your name is Tarot Aarohi. You are a warm, intuitive, all-purpose tarot reader. You handle any topic — love, career, health, spirituality.",
@@ -211,7 +234,10 @@ async def generate_reading(
 
     # Build system prompt in user's language
     user_language = getattr(user, "language", None) or "en"
-    system_prompt = build_system_prompt(user_language)
+    if spread_type == "yes_no":
+        system_prompt = build_yes_no_prompt(user_language)
+    else:
+        system_prompt = build_system_prompt(user_language)
 
     # Pick model: first reading (no question) = GPT-4o, follow-up (has question) = GPT-4o-mini
     llm = llm_followup if question else llm_primary
