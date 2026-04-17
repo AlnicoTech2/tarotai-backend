@@ -19,6 +19,73 @@ router = APIRouter(prefix="/readings", tags=["readings"])
 FREE_MONTHLY_LIMIT = 3  # Free users get 3 readings/month. Admins/premium = unlimited.
 
 
+class ChatRequest(BaseModel):
+    persona_id: str = "aarohi"
+    question: str
+
+
+class ChatResponse(BaseModel):
+    reading_text: str
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def persona_chat(
+    body: ChatRequest,
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Direct chat with a persona — no card drawing."""
+    from src.services.reading_service import (
+        build_persona_chat_prompt,
+        build_reading_prompt,
+        llm_followup,
+        get_past_reading_context,
+    )
+    from langchain_core.messages import SystemMessage, HumanMessage
+
+    result = await db.execute(
+        select(User).where(User.firebase_uid == firebase_user["uid"])
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Build user context (no cards, just profile + past readings + question)
+    past_context = await get_past_reading_context(db, user.id)
+    parts = [f"User: {user.name}"]
+    if user.gender:
+        parts.append(f"Gender: {user.gender}")
+    if user.relationship_status and user.relationship_status != "prefer_not_to_say":
+        parts.append(f"Relationship: {user.relationship_status}")
+    if user.occupation and user.occupation != "prefer_not_to_say":
+        parts.append(f"Occupation: {user.occupation}")
+    if user.zodiac_sign:
+        parts.append(f"Sun sign: {user.zodiac_sign}")
+    if user.moon_sign:
+        parts.append(f"Moon sign: {user.moon_sign}")
+    if user.ascendant:
+        parts.append(f"Ascendant: {user.ascendant}")
+    if user.birth_chart:
+        planets = user.birth_chart.get("planets", {})
+        if planets:
+            planet_str = ", ".join(f"{k}: {v}" for k, v in planets.items())
+            parts.append(f"Key placements: {planet_str}")
+    if past_context:
+        parts.append(f"\n{past_context}")
+    parts.append(f"\nQuestion: {body.question}")
+
+    user_language = getattr(user, "language", None) or "en"
+    system_prompt = build_persona_chat_prompt(user_language, body.persona_id)
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content="\n".join(parts)),
+    ]
+    response = await llm_followup.ainvoke(messages)
+
+    return ChatResponse(reading_text=response.content)
+
+
 @router.post("/", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
 async def create_reading(
     body: ReadingRequest,
