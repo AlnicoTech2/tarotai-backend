@@ -196,3 +196,42 @@ async def send_daily_push(
     log.info(f"Push sent: {sent_count}/{len(users)}, failed: {failed_count}")
 
     return {"sent": sent_count, "total": len(users), "failed": failed_count}
+
+
+# ─────────────────────────────────────────────────────
+# CLEANUP OLD CHAT SESSIONS (30 days)
+# ─────────────────────────────────────────────────────
+
+
+@router.post("/cleanup-old-chats", status_code=status.HTTP_200_OK)
+async def cleanup_old_chats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete chat sessions and messages older than 30 days."""
+    _verify_cron_secret(request)
+
+    from datetime import timedelta
+    from sqlalchemy import delete
+    from src.models.chat import ChatSession, ChatMessage
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+    # Get old session IDs
+    result = await db.execute(
+        select(ChatSession.id).where(ChatSession.updated_at < cutoff)
+    )
+    old_ids = [r[0] for r in result.all()]
+
+    if old_ids:
+        # Messages cascade-deleted via FK, but explicit delete is safer
+        await db.execute(
+            delete(ChatMessage).where(ChatMessage.session_id.in_(old_ids))
+        )
+        await db.execute(
+            delete(ChatSession).where(ChatSession.id.in_(old_ids))
+        )
+        await db.commit()
+        log.info(f"Cleaned up {len(old_ids)} old chat sessions")
+
+    return {"deleted_sessions": len(old_ids)}
