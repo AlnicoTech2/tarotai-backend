@@ -55,6 +55,12 @@ def _build_plans(cfg: dict) -> dict:
             "total_count": cfg.get("razorpay_monthly_cycles", 131),
             "is_trial": False,
         },
+        "yearly": {
+            "plan_id": cfg.get("razorpay_yearly_plan_id", ""),
+            "label": cfg.get("razorpay_yearly_label", "TarotAI Premium Yearly"),
+            "total_count": cfg.get("razorpay_yearly_cycles", 10),
+            "is_trial": False,
+        },
     }
 
 
@@ -64,7 +70,7 @@ def _build_plans(cfg: dict) -> dict:
 
 
 class CreateOrderRequest(BaseModel):
-    plan: str  # "trial" or "monthly"
+    plan: str  # "trial", "monthly", or "yearly"
 
 
 class CreateOrderResponse(BaseModel):
@@ -258,7 +264,9 @@ async def verify_payment(
     # 4. Upgrade user
     user.is_premium = True
     user.razorpay_subscription_id = body.razorpay_subscription_id
-    user.subscription_plan = "monthly"
+    # Detect plan from subscription notes
+    plan_type = (sub.get("notes") or {}).get("plan", "monthly") if sub else "monthly"
+    user.subscription_plan = plan_type if plan_type in ("monthly", "yearly") else "monthly"
     user.has_subscribed_before = True
     if subscription_end:
         user.subscription_expires_at = datetime.fromisoformat(subscription_end)

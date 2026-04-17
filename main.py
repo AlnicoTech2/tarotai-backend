@@ -88,9 +88,12 @@ APP_CONFIG = {
     "razorpay_currency": "INR",
 
     # Razorpay plan config (backend-only IDs stripped from client response)
-    "razorpay_monthly_plan_id": "plan_Se3K2RDOLnd0VY",
+    "razorpay_monthly_plan_id": "plan_SeT3dDCJkLFfgL",
     "razorpay_monthly_label": "TarotAI Premium Monthly",
     "razorpay_monthly_cycles": 131,
+    "razorpay_yearly_plan_id": "plan_SeT3dfYsfBbKWc",
+    "razorpay_yearly_label": "TarotAI Premium Yearly",
+    "razorpay_yearly_cycles": 10,
 
     # Trial config
     "trial_enabled": False,
@@ -104,6 +107,8 @@ APP_CONFIG = {
 
     # Paywall display prices
     "subscription_monthly_price": "\u20b999",
+    "subscription_yearly_price": "\u20b9999",
+    "subscription_yearly_save_percent": 22,
 
     # Paywall plan visibility (config-driven toggle)
     "paywall_new_user_plans": ["trial"],
