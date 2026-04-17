@@ -136,6 +136,37 @@ async def get_today_single_reading(
     return reading
 
 
+@router.get("/today-three-card", response_model=ReadingResponse)
+async def get_today_three_card_reading(
+    firebase_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get today's three-card reading if it exists."""
+    result = await db.execute(
+        select(User).where(User.firebase_uid == firebase_user["uid"])
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    today = datetime.now(timezone.utc).date()
+    result = await db.execute(
+        select(Reading)
+        .where(
+            Reading.user_id == user.id,
+            Reading.spread_type == "three_card",
+            func.date(Reading.created_at) == today,
+        )
+        .order_by(Reading.created_at.desc())
+        .limit(1)
+    )
+    reading = result.scalar_one_or_none()
+    if not reading:
+        raise HTTPException(status_code=404, detail="No three-card reading today")
+
+    return reading
+
+
 @router.get("/{reading_id}", response_model=ReadingResponse)
 async def get_reading(
     reading_id: UUID,
