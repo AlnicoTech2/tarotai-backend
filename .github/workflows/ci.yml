@@ -1,0 +1,38 @@
+name: CI — Backend Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install deps
+        run: |
+          uv sync
+          uv pip install ruff pip-audit
+
+      - name: Ruff lint
+        run: uv run ruff check .
+        continue-on-error: true
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+        continue-on-error: true
+
+      - name: pip-audit (known CVEs)
+        run: uv run pip-audit --desc
+        continue-on-error: true

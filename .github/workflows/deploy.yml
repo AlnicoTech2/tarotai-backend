@@ -55,3 +55,17 @@ jobs:
             --services $ECS_SERVICE \
             --region $AWS_REGION
           echo "Deployment stable."
+
+      - name: Smoke test — /health must return 200
+        run: |
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://tarotai.alnicotech.com/health)
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Smoke test passed"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌ Smoke test failed — /health did not return 200 after 5 attempts"
+          exit 1
