@@ -20,10 +20,15 @@ async def lifespan(app: FastAPI):
     # Shutdown
 
 
+_is_prod = settings.app_env == "production"
+
 app = FastAPI(
     title="TarotAI API",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
 )
 
 ALLOWED_ORIGINS = [
