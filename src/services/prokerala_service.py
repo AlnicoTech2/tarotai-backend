@@ -16,7 +16,7 @@ async def _get_token() -> str:
     if _access_token:
         return _access_token
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=15.0, transport=httpx.AsyncHTTPTransport(retries=2)) as client:
         response = await client.post(
             TOKEN_URL,
             data={
@@ -50,7 +50,7 @@ async def get_birth_chart(
     token = await _get_token()
     datetime_str = f"{date_of_birth}T{time_of_birth}:00{_format_tz(timezone_offset)}"
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=15.0, transport=httpx.AsyncHTTPTransport(retries=2)) as client:
         response = await client.get(
             f"{BASE_URL}/kundli",
             headers={"Authorization": f"Bearer {token}"},
@@ -75,7 +75,7 @@ async def get_planet_positions(
     token = await _get_token()
     datetime_str = f"{date_of_birth}T{time_of_birth}:00{_format_tz(timezone_offset)}"
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=15.0, transport=httpx.AsyncHTTPTransport(retries=2)) as client:
         response = await client.get(
             f"{BASE_URL}/planet-position",
             headers={"Authorization": f"Bearer {token}"},
@@ -100,7 +100,7 @@ async def get_kundli_advanced(
     token = await _get_token()
     datetime_str = f"{date_of_birth}T{time_of_birth}:00{_format_tz(timezone_offset)}"
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=15.0, transport=httpx.AsyncHTTPTransport(retries=2)) as client:
         response = await client.get(
             f"{BASE_URL}/kundli/advanced",
             headers={"Authorization": f"Bearer {token}"},

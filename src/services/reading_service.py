@@ -19,6 +19,8 @@ llm_primary = ChatOpenAI(
     temperature=0.85,
     max_tokens=300,
     streaming=True,
+    max_retries=3,
+    timeout=30.0,
 )
 
 # Follow-up chat — GPT-4o-mini (3x faster, good enough for conversation)
@@ -28,6 +30,8 @@ llm_followup = ChatOpenAI(
     temperature=0.85,
     max_tokens=300,
     streaming=True,
+    max_retries=3,
+    timeout=30.0,
 )
 
 embeddings = OpenAIEmbeddings(
