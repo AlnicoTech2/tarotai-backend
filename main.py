@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.core.config import get_settings
 from src.core.firebase import init_firebase
@@ -25,9 +26,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+ALLOWED_ORIGINS = [
+    "https://tarotai.alnicotech.com",
+]
+
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.debug else [],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

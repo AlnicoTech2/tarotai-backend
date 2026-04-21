@@ -1,4 +1,4 @@
-name: Deploy to App Runner
+name: Deploy to ECS Fargate
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
 env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY: tarotai-backend
-  APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:ap-south-1:676206937373:service/tarotai-backend/de067505e2fa496ca46c6fa3cf76e75d
+  ECS_CLUSTER: tarotai-cluster
+  ECS_SERVICE: tarotai-backend-service
 
 jobs:
   deploy:
@@ -39,7 +40,18 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: Deploy to App Runner
+      - name: Force new ECS deployment
         run: |
-          aws apprunner start-deployment --service-arn $APP_RUNNER_SERVICE_ARN
-          echo "Deployment triggered successfully."
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment \
+            --region $AWS_REGION
+
+      - name: Wait for deployment to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE \
+            --region $AWS_REGION
+          echo "Deployment stable."

@@ -525,10 +525,18 @@ async def delete_account(
     user_id = user.id
 
     try:
-        # Delete all readings (RAG embeddings + reading text)
         from src.models.reading import Reading
-        from sqlalchemy import delete
+        from src.models.chat import ChatSession, ChatMessage
+        from sqlalchemy import delete, select as sa_select
 
+        # Delete chat messages first (they reference chat_sessions)
+        session_ids_subq = sa_select(ChatSession.id).where(ChatSession.user_id == user_id)
+        await db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(session_ids_subq)))
+
+        # Delete chat sessions (they reference users)
+        await db.execute(delete(ChatSession).where(ChatSession.user_id == user_id))
+
+        # Delete all readings (RAG embeddings + reading text)
         await db.execute(delete(Reading).where(Reading.user_id == user_id))
 
         # Delete user record (point of no return)

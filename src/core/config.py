@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # App
     app_env: str = "development"
     app_secret_key: str = "change-this-in-production"
-    debug: bool = True
+    debug: bool = False
 
     # Database
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/tarotai"
