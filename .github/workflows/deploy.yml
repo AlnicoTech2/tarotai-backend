@@ -2,7 +2,7 @@ name: Deploy to ECS Fargate
 
 on:
   push:
-    branches: [main, dev/phase3-updates]
+    branches: [main]
 
 env:
   AWS_REGION: ap-south-1
