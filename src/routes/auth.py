@@ -151,8 +151,8 @@ async def register(
                     zodiac_sign = western_name
                 elif planet.get("name") == "Moon":
                     moon_sign = western_name
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[register] get_planet_positions FAILED for {body.date_of_birth} {body.time_of_birth} lat={latitude} lng={longitude}: {type(e).__name__}: {e}", flush=True)
 
         # 2. Kundli — nakshatra, dosha, yogas, dasha (advanced)
         try:
@@ -218,15 +218,16 @@ async def register(
                 adv = adv_data.get("data", {})
                 birth_chart["dasha_periods"] = adv.get("dasha_periods", [])
                 birth_chart["dasha_balance"] = adv.get("dasha_balance", {})
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[register] get_kundli_advanced FAILED: {type(e).__name__}: {e}", flush=True)
 
-        except Exception:
+        except Exception as e:
+            print(f"[register] get_birth_chart (kundli) FAILED for {body.date_of_birth} {body.time_of_birth} lat={latitude} lng={longitude}: {type(e).__name__}: {e}", flush=True)
             # Still save whatever planet data we got
             birth_chart = {"planets": planet_map, "planet_position": []}
 
-    except Exception:
-        pass  # Non-blocking — user can still register without astrology data
+    except Exception as e:
+        print(f"[register] birth_chart outer FAILED: {type(e).__name__}: {e}", flush=True)  # Non-blocking — user can still register without astrology data
 
     email = firebase_user.get("email")
     is_admin = _is_admin_email(email)
