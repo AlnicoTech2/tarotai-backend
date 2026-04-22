@@ -81,7 +81,6 @@ class CreateOrderResponse(BaseModel):
 
 
 @limiter.limit("5/minute")
-@limiter.limit("10/minute")
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_order(
     request: Request,
@@ -200,6 +199,7 @@ class VerifyResponse(BaseModel):
     subscription_end: str | None
 
 
+@limiter.limit("10/minute")
 @router.post("/verify", response_model=VerifyResponse)
 async def verify_payment(
     request: Request,

@@ -30,8 +30,6 @@ class ChatResponse(BaseModel):
 
 
 @limiter.limit("20/minute")
-@limiter.limit("20/minute")
-@limiter.limit("20/minute")
 @router.post("/chat", response_model=ChatResponse)
 async def persona_chat(
     request: Request,
@@ -91,6 +89,7 @@ async def persona_chat(
     return ChatResponse(reading_text=response.content)
 
 
+@limiter.limit("20/minute")
 @router.post("/", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
 async def create_reading(
     request: Request,
@@ -249,6 +248,7 @@ class FollowUpResponse(BaseModel):
     reading_text: str
 
 
+@limiter.limit("20/minute")
 @router.post("/{reading_id}/followup", response_model=FollowUpResponse)
 async def followup_reading(
     request: Request,

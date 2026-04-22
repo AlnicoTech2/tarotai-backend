@@ -133,7 +133,6 @@ async def _summarize_and_trim(db: AsyncSession, session: ChatSession):
 # ─── Save initial reading messages ───
 
 @limiter.limit("30/minute")
-@limiter.limit("30/minute")
 @router.post("/save-reading")
 async def save_reading_messages(
     request: Request,
@@ -170,6 +169,7 @@ async def save_reading_messages(
 
 # ─── Send message in session ───
 
+@limiter.limit("30/minute")
 @router.post("/send")
 async def send_message(
     request: Request,
