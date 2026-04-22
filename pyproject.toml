@@ -19,6 +19,7 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
     "razorpay>=2.0.1",
+    "slowapi>=0.1.9",
     "redis>=7.4.0",
     "sqlalchemy[asyncio]>=2.0.49",
     "uvicorn[standard]>=0.43.0",

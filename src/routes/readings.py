@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from src.core.limiter import limiter
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,8 +29,12 @@ class ChatResponse(BaseModel):
     reading_text: str
 
 
+@limiter.limit("20/minute")
+@limiter.limit("20/minute")
+@limiter.limit("20/minute")
 @router.post("/chat", response_model=ChatResponse)
 async def persona_chat(
+    request: Request,
     body: ChatRequest,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -88,6 +93,7 @@ async def persona_chat(
 
 @router.post("/", response_model=ReadingResponse, status_code=status.HTTP_201_CREATED)
 async def create_reading(
+    request: Request,
     body: ReadingRequest,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -245,6 +251,7 @@ class FollowUpResponse(BaseModel):
 
 @router.post("/{reading_id}/followup", response_model=FollowUpResponse)
 async def followup_reading(
+    request: Request,
     reading_id: UUID,
     body: FollowUpRequest,
     firebase_user: dict = Depends(get_current_user),

@@ -10,7 +10,8 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from src.core.limiter import limiter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -131,8 +132,11 @@ async def _summarize_and_trim(db: AsyncSession, session: ChatSession):
 
 # ─── Save initial reading messages ───
 
+@limiter.limit("30/minute")
+@limiter.limit("30/minute")
 @router.post("/save-reading")
 async def save_reading_messages(
+    request: Request,
     body: dict,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -168,6 +172,7 @@ async def save_reading_messages(
 
 @router.post("/send")
 async def send_message(
+    request: Request,
     body: SendMessageRequest,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

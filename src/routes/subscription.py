@@ -13,7 +13,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from src.core.limiter import limiter
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,8 +80,11 @@ class CreateOrderResponse(BaseModel):
     plan_label: str
 
 
+@limiter.limit("5/minute")
+@limiter.limit("10/minute")
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_order(
+    request: Request,
     body: CreateOrderRequest,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -198,6 +202,7 @@ class VerifyResponse(BaseModel):
 
 @router.post("/verify", response_model=VerifyResponse)
 async def verify_payment(
+    request: Request,
     body: VerifyRequest,
     firebase_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

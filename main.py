@@ -4,6 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+from src.core.limiter import limiter
 
 from src.core.config import get_settings
 from src.core.firebase import init_firebase
@@ -30,6 +34,10 @@ app = FastAPI(
     redoc_url=None if _is_prod else "/redoc",
     openapi_url=None if _is_prod else "/openapi.json",
 )
+
+# ── Rate limiting (denial-of-wallet protection) ──
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = [
     "https://tarotai.alnicotech.com",
