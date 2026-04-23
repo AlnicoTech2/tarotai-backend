@@ -364,18 +364,18 @@ async def refund_page():
 <p>This Refund Policy applies to the Tarot AI – Kundali App ("Application"), developed and operated by {COMPANY} ("Company", "we", "our", or "us").</p>
 
 <h2>1. Subscription Payments</h2>
-<p>The Application may offer premium features through paid subscriptions (monthly or annual).</p>
-<p>All payments are securely processed through third-party platforms such as:</p>
+<p>The Application may offer premium features such as detailed tarot readings and kundali insights through paid subscriptions.</p>
 <ul>
-<li>Google Play Store</li>
+<li>Subscriptions may be billed on a monthly or annual basis</li>
+<li>All payments are processed through third-party platforms such as the Google Play Store</li>
 </ul>
 
 <h2>2. No Refund Policy</h2>
-<p>All purchases and subscription payments are non-refundable, except where required by applicable laws or platform policies.</p>
+<p>All purchases and subscription payments are non-refundable, except where required by applicable laws.</p>
 <p>Once a subscription is activated:</p>
 <ul>
-<li>You will retain access to premium features until the end of the billing period</li>
-<li>No refunds, partial refunds, or credits will be issued for unused time</li>
+<li>You will continue to have access to premium features until the end of the billing period</li>
+<li>No refunds, partial refunds, or credits will be provided for unused time</li>
 </ul>
 
 <h2>3. Subscription Cancellation</h2>
@@ -386,25 +386,18 @@ async def refund_page():
 </ul>
 <p>After cancellation:</p>
 <ul>
-<li>No future charges will apply</li>
-<li>Your current subscription will remain active until the end of the billing period</li>
+<li>No future charges will be applied</li>
+<li>Your current subscription will remain active until the end of the billing cycle</li>
 </ul>
 
-<h2>4. Platform-Based Refunds</h2>
-<p>All refund requests, if applicable, must be made directly through the platform provider:</p>
-<ul>
-<li>Google Play purchases are subject to Google Play's refund policies</li>
-</ul>
-<p>We do not process or control refunds handled by the platform.</p>
-
-<h2>5. Digital Service Disclaimer</h2>
-<p>The Application provides digital services that are delivered instantly upon purchase.</p>
-<p>Due to the nature of digital content:</p>
+<h2>4. Digital Service Disclaimer</h2>
+<p>The Application provides digital services such as AI-generated tarot readings and astrology insights, which are delivered instantly upon purchase.</p>
+<p>Due to the nature of these digital services:</p>
 <ul>
 <li>Refunds are not applicable once the service has been accessed or used</li>
 </ul>
 
-<h2>6. Contact Us</h2>
+<h2>5. Contact Us</h2>
 <p>If you have any questions regarding this Refund Policy, please contact us at:</p>
 <p><a href="mailto:{SUPPORT_EMAIL}">📧 {SUPPORT_EMAIL}</a></p>
 
