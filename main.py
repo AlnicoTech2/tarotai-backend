@@ -129,7 +129,7 @@ APP_CONFIG = {
     "razorpay_yearly_cycles": 10,
 
     # Trial config
-    "trial_enabled": True,
+    "trial_enabled": False,
     "trial_price": 5,
     "trial_days": 1,
     "trial_addon_name": "Trial Access Fee",
@@ -144,8 +144,8 @@ APP_CONFIG = {
     "subscription_yearly_save_percent": 22,
 
     # Paywall plan visibility (config-driven toggle)
-    "paywall_new_user_plans": ["trial"],
-    "paywall_returning_user_plans": ["monthly"],
+    "paywall_new_user_plans": ["monthly", "yearly"],
+    "paywall_returning_user_plans": ["monthly", "yearly"],
 }
 
 
