@@ -128,18 +128,38 @@ async def generate_horoscopes(
 # ─────────────────────────────────────────────────────
 
 
-@router.post("/send-daily-push", status_code=status.HTTP_200_OK)
-async def send_daily_push(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Send daily push notification to all users with FCM tokens.
+# ─── Push message templates by time slot (peak-hour hooks for India audience) ───
+PUSH_TEMPLATES = {
+    "morning": {  # 8 AM IST — fired by tarotai-push-8am
+        "title": "Your daily tarot reading is ready",
+        "body_default": "{name}, the stars have a message for you today.",
+        "body_zodiac": "{name}, today's {zodiac} horoscope is here.",
+        "type": "daily_reminder",
+    },
+    "lunch": {  # 11:30 AM IST — peak signup hour
+        "title": "Quick lunchtime reading? 🍱",
+        "body_default": "{name}, take a 30-second break and pull a card.",
+        "body_zodiac": "{name}, your {zodiac} energy at midday — peek inside.",
+        "type": "lunch_reminder",
+    },
+    "evening": {  # 6:30 PM IST — second peak (post-work)
+        "title": "Evening reflection ✨",
+        "body_default": "{name}, what does today's energy say? Pull your evening card.",
+        "body_zodiac": "{name}, end your day with a {zodiac} insight.",
+        "type": "evening_reminder",
+    },
+}
 
-    Called by EventBridge Scheduler at 8am IST.
+
+async def _send_push_to_all_users(
+    db: AsyncSession,
+    slot: str,
+) -> dict:
+    """Internal helper used by all 3 push slots. Iterates all FCM-registered users
+    and sends a slot-specific message. Returns counts.
     """
-    _verify_cron_secret(request)
+    template = PUSH_TEMPLATES.get(slot, PUSH_TEMPLATES["morning"])
 
-    # Get all users with FCM tokens
     result = await db.execute(
         select(User.fcm_token, User.name, User.zodiac_sign)
         .where(User.fcm_token.isnot(None))
@@ -148,8 +168,8 @@ async def send_daily_push(
     users = result.all()
 
     if not users:
-        log.info("No users with FCM tokens — skipping push")
-        return {"sent": 0, "total": 0}
+        log.info(f"[push:{slot}] no users with FCM tokens — skipping")
+        return {"slot": slot, "sent": 0, "total": 0}
 
     from firebase_admin import messaging
 
@@ -159,43 +179,63 @@ async def send_daily_push(
     for fcm_token, name, zodiac_sign in users:
         try:
             first_name = (name or "").split(" ")[0] or "Seeker"
-            title = "Your daily tarot reading is ready"
-            body = f"{first_name}, the stars have a message for you today."
-
             if zodiac_sign:
-                body = f"{first_name}, today's {zodiac_sign} horoscope is here."
+                body = template["body_zodiac"].format(name=first_name, zodiac=zodiac_sign)
+            else:
+                body = template["body_default"].format(name=first_name)
 
             message = messaging.Message(
                 notification=messaging.Notification(
-                    title=title,
+                    title=template["title"],
                     body=body,
                 ),
                 token=fcm_token,
                 data={
-                    "type": "daily_reminder",
+                    "type": template["type"],
                     "click_action": "OPEN_APP",
+                    "slot": slot,
                 },
             )
             messaging.send(message)
             sent_count += 1
-
         except messaging.UnregisteredError:
-            # Token expired — clear it
-            await db.execute(
-                select(User)
-                .where(User.fcm_token == fcm_token)
-            )
-            # Mark token as invalid
-            log.info(f"FCM token expired, clearing: {fcm_token[:20]}...")
-
+            log.info(f"[push:{slot}] FCM token expired: {fcm_token[:20]}...")
         except Exception as e:
             failed_count += 1
-            log.error(f"FCM send failed: {e}")
+            log.error(f"[push:{slot}] FCM send failed: {e}")
 
-    await db.commit()
-    log.info(f"Push sent: {sent_count}/{len(users)}, failed: {failed_count}")
+    log.info(f"[push:{slot}] sent={sent_count}/{len(users)} failed={failed_count}")
+    return {"slot": slot, "sent": sent_count, "total": len(users), "failed": failed_count}
 
-    return {"sent": sent_count, "total": len(users), "failed": failed_count}
+
+@router.post("/send-daily-push", status_code=status.HTTP_200_OK)
+async def send_daily_push(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """8 AM IST — primary daily push (horoscope ready)."""
+    _verify_cron_secret(request)
+    return await _send_push_to_all_users(db, slot="morning")
+
+
+@router.post("/send-lunch-push", status_code=status.HTTP_200_OK)
+async def send_lunch_push(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """11:30 AM IST — peak signup hour, midday hook."""
+    _verify_cron_secret(request)
+    return await _send_push_to_all_users(db, slot="lunch")
+
+
+@router.post("/send-evening-push", status_code=status.HTTP_200_OK)
+async def send_evening_push(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """6:30 PM IST — post-work peak, evening reflection hook."""
+    _verify_cron_secret(request)
+    return await _send_push_to_all_users(db, slot="evening")
 
 
 # ─────────────────────────────────────────────────────
