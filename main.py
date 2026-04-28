@@ -129,7 +129,7 @@ APP_CONFIG = {
     "razorpay_yearly_cycles": 10,
 
     # Trial config
-    "trial_enabled": False,
+    "trial_enabled": True,
     "trial_price": 5,
     "trial_days": 1,
     "trial_addon_name": "Trial Access Fee",
@@ -138,15 +138,14 @@ APP_CONFIG = {
     "trial_gateway_text": "(Pay only Gateway Charges)",
     "trial_save_text": "Save 95%",
 
-    # Paywall display prices — period embedded so info survives even if i18n
-    # label below gets clipped on small screens
-    "subscription_monthly_price": "\u20b999/mo",
-    "subscription_yearly_price": "\u20b9999/yr",
+    # Paywall display prices
+    "subscription_monthly_price": "\u20b999",
+    "subscription_yearly_price": "\u20b9999",
     "subscription_yearly_save_percent": 22,
 
     # Paywall plan visibility (config-driven toggle)
-    "paywall_new_user_plans": ["monthly", "yearly"],
-    "paywall_returning_user_plans": ["monthly", "yearly"],
+    "paywall_new_user_plans": ["trial"],
+    "paywall_returning_user_plans": ["monthly"],
 }
 
 
